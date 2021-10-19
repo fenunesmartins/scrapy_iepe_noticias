@@ -3,17 +3,29 @@ import time
 import scrapy
 from pydispatch import dispatcher
 from scrapy import signals
-import requests
-from bs4 import BeautifulSoup
+
 
 class IepeNoticias(scrapy.Spider):
-    name = 'iepenoiticias'
+    name = 'iepenoticias'
     start_urls = ['https://www.iepe.sp.gov.br/portal/noticias']
     counter = 0
     results = {}
 
     def __init__(self):
         dispatcher.connect(self.spider_closed, signals.spider_closed)
+
+    def parse(self, response):
+        for noticia in response.css("div.ntc_cont_noticias > a::attr('href')"):
+            time.sleep(1)
+            yield scrapy.Request(
+                url='https://www.iepe.sp.gov.br' + noticia.get(),
+                callback=self.parseInnerPage,
+            )
+
+            #nextPage = response.css("div.sw_cont_paginacao > a:nth-of-type(2)::attr('href')").get()
+            #if nextPage is not None:
+            #    time.sleep(2)
+            #    yield response.follow(nextPage, callback=self.parse)
 
     def parseInnerPage(self, response):
 
@@ -50,15 +62,6 @@ class IepeNoticias(scrapy.Spider):
         if item_date is not None:
             item_date = cleanItem(item2=item_date)
 
-        def parse(self, response):
-            for noticia in response.css("div.ntc_cont_noticias > a::attr('href)"):
-                time.sleep(1)
-                yield scrapy.Request(
-                    url='https://www.iepe.sp.gov.br' + noticia.get(),
-                    callback=self.parseInnerPage,
-
-                )
-
         img_links = []
 
         for img in response.css("div.ntc_thumbnails_imagem_noticia > a::attr('href')").getall():
@@ -88,12 +91,9 @@ class IepeNoticias(scrapy.Spider):
 
         self.counter = self.counter + 1
 
-        nextPage = response.css("div.sw_cont_paginacao > a:nth-of-type(2)::attr('href')").get()
-        if nextPage is not None:
-            time.sleep(2)
-            yield response.follow(nextPage, callback=self.parse)
-
-
     def spider_closed(self, spider):
-        with open('results.json', 'w', encondig='utf8') as fp:
+        with open('results.json','w' ,encoding='utf8') as fp:
             json.dump(self.results, fp, ensure_ascii=False)
+
+
+
