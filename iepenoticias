@@ -68,7 +68,7 @@ class IepeNoticias(scrapy.Spider):
             img_links.append(response.urljoin(img))
 
         if len(img_links) == 0:
-            img_links.append(response.urljoin(response.css("ntc_area_slide_imagens_noticia > img::attr('src')").get()))
+            img_links.append(response.urljoin(response.css("div.ntc_img_slide_noticia > img::attr('src')").get()))
 
         yield {
             'image_urls': img_links
@@ -80,19 +80,19 @@ class IepeNoticias(scrapy.Spider):
             item_post_content += ' ' + cleanItem(item2=item.get())
 
         self.results[self.counter] = {
-            "titulo": item_title,
-            "subtitulo": item_subtitle,
-            "categoria": item_category,
-            "cordaCategoria": color_category,
-            "datadePostagem": item_date,
-            "imagemUrls": img_links,
-            "conteudo": item_post_content
+            "Titulo": item_title,
+            "Subtitulo": item_subtitle,
+            "Categoria": item_category,
+            "CorDaCategoria": color_category,
+            "dataDePostagem": item_date,
+            "ImagemUrls": img_links,
+            "Conteudo": item_post_content
         }
 
         self.counter = self.counter + 1
 
     def spider_closed(self, spider):
-        with open('results.json','w' ,encoding='utf8') as fp:
+        with open('results.json', 'w', encoding='utf8') as fp:
             json.dump(self.results, fp, ensure_ascii=False)
 
 
