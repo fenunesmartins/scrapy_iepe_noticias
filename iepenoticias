@@ -76,7 +76,7 @@ class IepeNoticias(scrapy.Spider):
 
         item_post_content = ''
 
-        for item in response.css("div.nntc_cont_descricao_noticia *::text"):
+        for item in response.css("div.ntc_descricao_noticia  *::text"):
             item_post_content += ' ' + cleanItem(item2=item.get())
 
         self.results[self.counter] = {
