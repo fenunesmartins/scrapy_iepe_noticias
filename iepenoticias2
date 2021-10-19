@@ -1,0 +1,105 @@
+import json
+import time
+
+import scrapy
+from pydispatch import dispatcher
+from scrapy import signals
+
+import requests
+from bs4 import BeautifulSoup
+
+
+class IepeNoticias(scrapy.Spider):
+    name = "iepenoticias"
+    start_urls = ['https://www.iepe.sp.gov.br/portal/noticias/']
+    counter = 0
+    results = {}
+
+    def __init__(self):
+        dispatcher.connect(self.spider_closed, signals.spider_closed)
+
+    def parse(self, response):
+
+        for noticia in response.css("div.ntc_cont_noticias > a::attr('href')"):
+
+            yield scrapy.Request(
+                url='https://www.iepe.sp.gov.br' + noticia.get(),
+                callback=self.parseInnerPage,
+            )
+
+        # nextPage = response.css("div.sw_cont_paginacao > a:nth-of-type(2)::attr('href')").get()
+        # if nextPage is not None:
+        #     time.sleep(2)
+        #     yield response.follow(nextPage, callback=self.parse)
+
+    def parseInnerPage(self, response):
+
+        def cleanItem(item2):
+            item2 = item2.strip()
+            item2 = item2.replace(u'\xa0', '')
+            item2 = item2.replace(u'\n', '')
+            item2 = item2.replace(u'\t', '')
+            item2 = item2.replace(u'\r', '')
+            item2 = item2.replace(u"\xa0", "")
+            item2 = item2.strip()
+            return item2
+
+        time.sleep(1.5)
+
+        item_title = response.css("div.ntc_titulo_noticia::text").get()
+        item_subtitle = response.css("div.ntc_resumo_noticia > span::text").get()
+        item_category = response.css("div.ntc_categoria_noticia::text").get()
+        color_category = response.css("div.ntc_categoria_noticia::attr('style')").get()
+        item_date = response.css("div.ntc_data_noticia:nth-of-type(2)::text").get()
+
+        if item_title is not None:
+            item_title = cleanItem(item2=item_title)
+
+        if item_subtitle is not None:
+            item_subtitle = cleanItem(item2=item_subtitle)
+
+        if item_category is not None:
+            item_category = cleanItem(item2=item_category)
+
+        if color_category is not None:
+            color_category = cleanItem(item2=color_category)
+
+        if item_date is not None:
+            item_date = cleanItem(item2=item_date)
+
+
+        img_links = []
+
+        for img in response.css("div.ntc_thumbnail_imagem_noticia > a::attr('href')").getall():
+            img_links.append(response.urljoin(img))
+
+        if len(img_links) == 0:
+            img_links.append(response.urljoin(response.css("div.ntc_img_slide_noticia > img::attr('src')").get()))
+
+        yield {
+            'image_urls': img_links
+        }
+
+        item_post_content = ''
+
+        for item in response.css("div.ntc_descricao_noticia  *::text"):
+            item_post_content += ' ' + cleanItem(item2=item.get())
+
+        self.results[self.counter] = {
+            "titulo": item_title,
+            "subtitulo": item_subtitle,
+            "categoria": item_category,
+            "corDaCategoria": color_category,
+            "dataDePostagem": item_date,
+            "imagemUrls": img_links,
+            'conteudo': item_post_content,
+        }
+
+        self.counter = self.counter + 1
+
+    def spider_closed(self, spider):
+        with open('results.json','w' ,encoding='utf8') as fp:
+            json.dump(self.results, fp, ensure_ascii=False)
+
+
+
